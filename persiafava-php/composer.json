@@ -1,0 +1,24 @@
+{
+    "name": "persiafava/sms-sdk",
+    "type": "library",
+    "description": "کلاینت رسمی PHP برای وب‌سرویس پیامک پرشیا فاوا (REST API)",
+    "keywords": [
+        "persiafava",
+        "sms",
+        "api",
+        "sms-gateway"
+    ],
+    "homepage": "https://sms.persiafava.com",
+    "license": "MIT",
+    "require": {
+        "php": ">=7.2",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "PersiaFava\\\\": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}

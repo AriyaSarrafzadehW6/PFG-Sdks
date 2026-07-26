@@ -1,0 +1,17 @@
+{
+  "name": "persiafava-sms-sdk",
+  "version": "1.0.0",
+  "description": "کلاینت رسمی Node.js برای وب‌سرویس پیامک پرشیا فاوا (REST API)",
+  "main": "src/client.js",
+  "keywords": [
+    "persiafava",
+    "sms",
+    "api",
+    "sms-gateway"
+  ],
+  "homepage": "https://sms.persiafava.com",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
