@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <PackageId>PersiaFava.Sms.Sdk</PackageId>
+    <Version>1.0.0</Version>
+    <Description>کلاینت رسمی C#/.NET برای وب‌سرویس پیامک پرشیا فاوا (REST API)</Description>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+</Project>
