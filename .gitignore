@@ -1,0 +1,23 @@
+# Build artifacts
+build/
+dist/
+bin/
+obj/
+
+# Dependencies
+node_modules/
+vendor/
+.venv/
+venv/
+target/
+
+# Environment / Secrets
+.env
+.env.local
+*.pfx
+appsettings.Development.json
+
+# IDE
+.vs/
+.vscode/
+*.user
