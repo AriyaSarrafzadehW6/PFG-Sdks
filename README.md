@@ -1,34 +1,72 @@
 # PersiaFava SMS SDKs
 
-کیت‌های توسعه نرم‌افزار (SDK) رسمی برای وب‌سرویس REST پیامک پرشیا فاوا.
+Official SDKs for the PersiaFava SMS REST API.
 
-## زبان‌های موجود
+This repository includes client libraries for multiple languages so you can send messages, check delivery status, manage contacts, work with labels and keywords, and use other parts of the PersiaFava SMS platform without dealing with raw HTTP requests yourself.
 
-| پوشه | زبان | نصب |
-|---|---|---|
-| [`persiafava-php/`](./persiafava-php) | PHP 7.2+ | `composer require persiafava/sms-sdk` |
-| [`persiafava-node/`](./persiafava-node) | Node.js | `npm install persiafava-sms-sdk` |
-| [`persiafava-python/`](./persiafava-python) | Python 3.6+ | `pip install persiafava-sms-sdk` |
-| [`persiafava-dotnet/`](./persiafava-dotnet) | C# / .NET 6+ | `dotnet add package PersiaFava.Sms.Sdk` |
-| [`persiafava-java/`](./persiafava-java) | Java 11+ | Maven (`pom.xml` شامل شده) |
-| [`persiafava-go/`](./persiafava-go) | Go 1.20+ | `go get github.com/persiafava/persiafava-go` |
-| [`persiafava-ruby/`](./persiafava-ruby) | Ruby 2.6+ | `gem install persiafava-sms-sdk` |
+## Available SDKs
 
-هر ۷ SDK پوشش کامل ۱۶ متد REST را دارند: ارسال پیامک، وضعیت دلیوری، دریافتی‌ها، اطلاعات کاربر، مدیریت دفترچه تلفن (گروه‌ها و شماره‌ها)، کلمات کلیدی/لیبل، و لینک ورود یکبار‌مصرف.
+| Directory | Language | Install |
+| --- | --- | --- |
+| `persiafava-php/` | PHP 7.2+ | `composer require persiafava/sms-sdk` |
+| `persiafava-node/` | Node.js | `npm install persiafava-sms-sdk` |
+| `persiafava-python/` | Python 3.6+ | `pip install persiafava-sms-sdk` |
+| `persiafava-dotnet/` | C# / .NET 6+ | `dotnet add package PersiaFava.Sms.Sdk` |
+| `persiafava-java/` | Java 11+ | Maven package |
+| `persiafava-go/` | Go 1.20+ | `go get github.com/persiafava/persiafava-go` |
+| `persiafava-ruby/` | Ruby 2.6+ | `gem install persiafava-sms-sdk` |
 
-## احراز هویت
+## Features
 
-هر ۷ کلاینت از دو روش پشتیبانی می‌کنند:
-1. `Client(username, password)`
-2. `Client(api_key)` — پیشنهادی؛ از پنل کاربری یک API Key بسازید و فقط همان را بدهید.
+All SDKs are built around the same core API capabilities, including:
 
-## خطاها
+- Sending SMS
+- Checking delivery status
+- Reading inbound messages
+- Fetching account information
+- Managing contact groups and contacts
+- Working with labels and keywords
+- Creating one-time login links
 
-الگوی یکسان در همه‌ی زبان‌ها :
-- **ApiException** — درخواست به سرور رسید اما خود API خطا برگرداند (اعتبار ناکافی، پارامتر نامعتبر...)
-- **HttpException / HttpRequestException** — اصلاً امکان برقراری ارتباط با سرور نبود (قطعی شبکه، تایم‌اوت...)
+## Authentication
 
+The clients support two authentication styles:
 
-## لایسنس
+1. Username and password
+2. API key
 
-Aria.Sarrafzadeh — © PersiaFava
+API key authentication is recommended for most projects.
+
+## Error Handling
+
+The SDKs follow a similar error model across languages:
+
+- `ApiException`: the request reached the API, but the API returned an error
+- `HttpException` / `HttpRequestException`: the request could not be completed because of a network or transport issue
+
+Exact class names may vary slightly depending on the language.
+
+## Getting Started
+
+Each SDK directory includes its own README and example files with language-specific usage.
+
+Typical setup looks like this:
+
+1. Install the package for your language
+2. Create a client with your credentials or API key
+3. Call the method you need
+4. Handle API and HTTP errors as needed
+
+## Repository Layout
+
+- `persiafava-php/` — PHP package
+- `persiafava-node/` — Node.js package
+- `persiafava-python/` — Python package
+- `persiafava-dotnet/` — .NET package
+- `persiafava-java/` — Java package
+- `persiafava-go/` — Go package
+- `persiafava-ruby/` — Ruby package
+
+## License
+
+Ariya.Sarrafzadeh — © PersiaFava
