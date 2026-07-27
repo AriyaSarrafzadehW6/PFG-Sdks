@@ -1,0 +1,76 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: persiafava-go
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+        
+    - name: Install dependencies
+      run: go mod tidy
+        
+    - name: Test Sending SMS
+      env:
+        PERSIAFAVA_USER: "aria"
+        PERSIAFAVA_PASS: "Aria!160"
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'EOF' > test_sms.go
+        package main
+        
+        import (
+        	"fmt"
+        	"os"
+        	"time"
+        	
+        	"persiafava-go/persiafava" // Adjust import path if needed based on go.mod
+        )
+        
+        func main() {
+        	client := persiafava.NewClient(
+        		os.Getenv("PERSIAFAVA_USER"),
+        		os.Getenv("PERSIAFAVA_PASS"),
+        		os.Getenv("PERSIAFAVA_API_KEY"),
+        	)
+        	
+        	loc, err := time.LoadLocation("Asia/Tehran")
+        	if err != nil {
+        		fmt.Printf("Failed to load location: %v\n", err)
+        		os.Exit(1)
+        	}
+        	currentTime := time.Now().In(loc).Format(time.RFC3339)
+        	message := fmt.Sprintf("git test %s", currentTime)
+
+        	response, err := client.SendSMS(
+        		[]string{"09123117965"},
+        		"300097500097",
+        		message,
+        	)
+        	
+        	if err != nil {
+        		fmt.Printf("Failed to send SMS: %v\n", err)
+        		os.Exit(1)
+        	}
+        	
+        	fmt.Printf("Sent message: %s\n", message)
+        	fmt.Printf("Success! Response: %+v\n", response)
+        }
+        EOF
+        go run test_sms.go

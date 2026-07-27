@@ -1,0 +1,68 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: persiafava-python
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install requests
+        pip install pytz
+        
+    - name: Test Sending SMS
+      env:
+        PERSIAFAVA_USER: "aria"
+        PERSIAFAVA_PASS: "Aria!160"
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'EOF' > test_sms.py
+        import os
+        import sys
+        from datetime import datetime
+        import pytz
+        from persiafava.client import Client
+        
+        try:
+            client = Client(
+                username=os.environ['PERSIAFAVA_USER'],
+                password=os.environ['PERSIAFAVA_PASS'],
+                api_key=os.environ['PERSIAFAVA_API_KEY']
+            )
+            
+            tehran_tz = pytz.timezone('Asia/Tehran')
+            current_time = datetime.now(tehran_tz).isoformat()
+            message = f"git test {current_time}"
+            
+            response = client.send_sms(
+                to=["09123117965"], 
+                sender="300097500097", 
+                text=message
+            )
+            print(f"Sent message: {message}")
+            print(f"Success! Response: {response}")
+        except Exception as e:
+            print(f"Failed to send SMS: {e}")
+            sys.exit(1)
+        EOF
+        python test_sms.py
