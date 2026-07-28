@@ -28,7 +28,7 @@ jobs:
     - name: Build with Maven
       run: mvn clean compile
         
-    - name: Test Sending SMS
+    - name: Test Complete SMS Chain
       env:
         PERSIAFAVA_USER: "aria"
         PERSIAFAVA_PASS: "Aria!160"
@@ -37,39 +37,91 @@ jobs:
         cat << 'EOF' > src/main/java/com/persiafava/sms/TestApp.java
         package com.persiafava.sms;
         
-        import java.util.Arrays;
+        import java.util.*;
+        import java.net.URI;
+        import java.net.URLEncoder;
+        import java.net.http.HttpClient;
+        import java.net.http.HttpRequest;
+        import java.net.http.HttpResponse;
         import java.time.ZonedDateTime;
         import java.time.ZoneId;
         import java.time.format.DateTimeFormatter;
+        import java.util.regex.Matcher;
+        import java.util.regex.Pattern;
         
         public class TestApp {
             public static void main(String[] args) {
                 try {
-                    Client client = new Client(
-                        System.getenv("PERSIAFAVA_USER"),
-                        System.getenv("PERSIAFAVA_PASS"),
-                        System.getenv("PERSIAFAVA_API_KEY")
-                    );
+                    String user = System.getenv("PERSIAFAVA_USER");
+                    String pass = System.getenv("PERSIAFAVA_PASS");
+                    String apiKey = System.getenv("PERSIAFAVA_API_KEY");
                     
-                    ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Tehran"));
-                    String currentTime = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                    Map<String, String> statusMap = new HashMap<>();
+                    statusMap.put("-1", "پیام یافت نشد - احتمالاً آرشیو شده"); statusMap.put("0", "بدون وضعیت - در انتظار دریافت وضعیت");
+                    statusMap.put("1", "رسیده به گوشی ✅"); statusMap.put("2", "نرسیده به گوشی ❌");
+                    statusMap.put("3", "ارسال نشده به مخابرات"); statusMap.put("4", "ارسال شده به مخابرات");
+                    statusMap.put("5", "لیست سیاه مخابرات (Blacklist)"); statusMap.put("8", "ارسال شده به اپراتور");
+                    statusMap.put("9", "بازگشت هزینه به دلیل ترافیک مخابرات"); statusMap.put("10", "صف ارسال");
+                    statusMap.put("11", "اسپم"); statusMap.put("12", "منقضی شده (Expired)");
+                    statusMap.put("13", "بدون روت"); statusMap.put("14", "ریجکت شده");
+                    statusMap.put("16", "نرسیده به مخابرات"); statusMap.put("17", "بدون وضعیت دلیوربیس");
+        
+                    HttpClient httpClient = HttpClient.newHttpClient();
+                    
+                    // 1. User Info
+                    System.out.println("--- Step 1: User Info ---");
+                    String form = "login_username=" + URLEncoder.encode(user, "UTF-8") + "&login_password=" + URLEncoder.encode(pass, "UTF-8");
+                    HttpRequest infoReq = HttpRequest.newBuilder(URI.create("https://sms.persiafava.com/webservice/rest/user_info"))
+                        .header("Content-Type", "application/x-www-form-urlencoded")
+                        .POST(HttpRequest.BodyPublishers.ofString(form)).build();
+                    HttpResponse<String> infoRes = httpClient.send(infoReq, HttpResponse.BodyHandlers.ofString());
+                    System.out.println("User Info: " + infoRes.body() + "\n");
+        
+                    // 2. SDK Send SMS
+                    System.out.println("--- Step 2: Send SMS (via SDK) ---");
+                    Client sdkClient = new Client(user, pass, apiKey);
+                    String currentTime = ZonedDateTime.now(ZoneId.of("Asia/Tehran")).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
                     String message = "git test " + currentTime;
-
-                    String response = client.sendSms(
-                        Arrays.asList("09123117965"),
-                        "300097500097",
-                        message
-                    );
                     
-                    System.out.println("Sent message: " + message);
-                    System.out.println("Success! Response: " + response);
+                    Object response = sdkClient.sendSms(Arrays.asList("09123117965"), "300097500097", message);
+                    String resStr = response.toString();
+                    
+                    Matcher m = Pattern.compile("\"list\"\\s*:\\s*\\[\\s*\"([^\"]+)\"").matcher(resStr);
+                    if (!m.find()) {
+                        System.err.println("Failed to extract smsId from: " + resStr);
+                        System.exit(1);
+                    }
+                    String smsId = m.group(1);
+                    System.out.println("SDK Response: " + resStr);
+                    System.out.println("Extracted SMS ID: " + smsId + "\n");
+        
+                    // 3. Delivery Polling
+                    System.out.println("--- Step 3: Polling Delivery ---");
+                    List<String> pending = Arrays.asList("0", "4", "10");
+                    
+                    for (int i = 0; i < 6; i++) {
+                        Thread.sleep(5000);
+                        HttpRequest delReq = HttpRequest.newBuilder(URI.create("http://sms.persiafava.com/webservice/rest/sms_deliver?smsid[]=" + smsId + "&dargah=3000")).build();
+                        HttpResponse<String> delRes = httpClient.send(delReq, HttpResponse.BodyHandlers.ofString());
+                        
+                        Matcher delMatch = Pattern.compile("\"" + smsId + "\"\\s*:\\s*\"?([^\",\\}]+)\"?").matcher(delRes.body());
+                        String code = delMatch.find() ? delMatch.group(1).replace("\"", "") : "-99";
+                        String statusText = statusMap.getOrDefault(code, "وضعیت ناشناخته");
+                        
+                        System.out.println("Attempt " + (i+1) + " -> Status for " + smsId + ": " + statusText + " (Code: " + code + ")");
+                        
+                        if (!pending.contains(code)) {
+                            System.out.println("Final Status Reached. Chain Complete!");
+                            return;
+                        }
+                    }
+                    System.out.println("Timeout waiting for final delivery status.");
                 } catch (Exception e) {
-                    System.err.println("Failed to send SMS: " + e.getMessage());
+                    System.err.println("Chain failed: " + e.getMessage());
                     System.exit(1);
                 }
             }
         }
         EOF
-        # Recompile with the test app and run it
         mvn compile
         mvn exec:java -Dexec.mainClass="com.persiafava.sms.TestApp"
