@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: go mod tidy
         
-    - name: Test Sending SMS
+    - name: Test Complete SMS Chain
       env:
         PERSIAFAVA_USER: "aria"
         PERSIAFAVA_PASS: "Aria!160"
@@ -36,41 +36,103 @@ jobs:
         package main
         
         import (
+        	"encoding/json"
         	"fmt"
+        	"io/ioutil"
+        	"net/http"
+        	"net/url"
         	"os"
+        	"regexp"
         	"time"
         	
-        	"persiafava-go/persiafava" // Adjust import path if needed based on go.mod
+        	"persiafava-go/persiafava" // Adjust based on your module setup
         )
         
         func main() {
-        	client := persiafava.NewClient(
-        		os.Getenv("PERSIAFAVA_USER"),
-        		os.Getenv("PERSIAFAVA_PASS"),
-        		os.Getenv("PERSIAFAVA_API_KEY"),
-        	)
+        	user := os.Getenv("PERSIAFAVA_USER")
+        	pass := os.Getenv("PERSIAFAVA_PASS")
+        	apiKey := os.Getenv("PERSIAFAVA_API_KEY")
         	
-        	loc, err := time.LoadLocation("Asia/Tehran")
-        	if err != nil {
-        		fmt.Printf("Failed to load location: %v\n", err)
-        		os.Exit(1)
+        	statusMap := map[string]string{
+        		"-1": "پیام یافت نشد - احتمالاً آرشیو شده", "0": "بدون وضعیت - در انتظار دریافت وضعیت",
+        		"1": "رسیده به گوشی ✅", "2": "نرسیده به گوشی ❌", "3": "ارسال نشده به مخابرات",
+        		"4": "ارسال شده به مخابرات", "5": "لیست سیاه مخابرات (Blacklist)", "8": "ارسال شده به اپراتور",
+        		"9": "بازگشت هزینه به دلیل ترافیک مخابرات", "10": "صف ارسال", "11": "اسپم",
+        		"12": "منقضی شده (Expired)", "13": "بدون روت", "14": "ریجکت شده",
+        		"16": "نرسیده به مخابرات", "17": "بدون وضعیت دلیوربیس",
         	}
+        
+        	// 1. User Info
+        	fmt.Println("--- Step 1: User Info ---")
+        	v := url.Values{}
+        	v.Set("login_username", user)
+        	v.Set("login_password", pass)
+        	resp, _ := http.PostForm("https://sms.persiafava.com/webservice/rest/user_info", v)
+        	infoBytes, _ := ioutil.ReadAll(resp.Body)
+        	fmt.Printf("User Info: %s\n\n", string(infoBytes))
+        	resp.Body.Close()
+        
+        	// 2. SDK Send SMS
+        	fmt.Println("--- Step 2: Send SMS (via SDK) ---")
+        	client := persiafava.NewClient(user, pass, apiKey)
+        	loc, _ := time.LoadLocation("Asia/Tehran")
         	currentTime := time.Now().In(loc).Format(time.RFC3339)
         	message := fmt.Sprintf("git test %s", currentTime)
-
-        	response, err := client.SendSMS(
-        		[]string{"09123117965"},
-        		"300097500097",
-        		message,
-        	)
-        	
+        
+        	sdkRes, err := client.SendSMS([]string{"09123117965"}, "300097500097", message)
         	if err != nil {
-        		fmt.Printf("Failed to send SMS: %v\n", err)
+        		fmt.Printf("SDK Send Error: %v\n", err)
         		os.Exit(1)
         	}
         	
-        	fmt.Printf("Sent message: %s\n", message)
-        	fmt.Printf("Success! Response: %+v\n", response)
+        	// Extract SMS ID robustly
+        	resBytes, _ := json.Marshal(sdkRes)
+        	resStr := string(resBytes)
+        	if resStr == "{}" || resStr == `"{}"` {
+        		resStr = fmt.Sprintf("%+v", sdkRes) // Fallback for some struct setups
+        	}
+        	
+        	re := regexp.MustCompile(`"list"\s*:\s*\[\s*"([^"]+)"`)
+        	matches := re.FindStringSubmatch(resStr)
+        	if len(matches) < 2 {
+        		fmt.Printf("Could not extract smsId from SDK response: %s\n", resStr)
+        		os.Exit(1)
+        	}
+        	smsId := matches[1]
+        	fmt.Printf("SDK Response: %s\nExtracted SMS ID: %s\n\n", resStr, smsId)
+        
+        	// 3. Polling Delivery
+        	fmt.Println("--- Step 3: Polling Delivery ---")
+        	pending := map[string]bool{"0": true, "4": true, "10": true}
+        
+        	for i := 0; i < 6; i++ {
+        		time.Sleep(5 * time.Second)
+        		delUrl := fmt.Sprintf("http://sms.persiafava.com/webservice/rest/sms_deliver?smsid[]=%s&dargah=3000", smsId)
+        		delResp, _ := http.Get(delUrl)
+        		delBytes, _ := ioutil.ReadAll(delResp.Body)
+        		delResp.Body.Close()
+        
+        		var delJson map[string]interface{}
+        		json.Unmarshal(delBytes, &delJson)
+        		
+        		code := "-99"
+        		if listObj, ok := delJson["list"].(map[string]interface{}); ok {
+        			code = fmt.Sprintf("%v", listObj[smsId])
+        		}
+        
+        		statusText, exists := statusMap[code]
+        		if !exists {
+        			statusText = "وضعیت ناشناخته"
+        		}
+        
+        		fmt.Printf("Attempt %d -> Status for %s: %s (Code: %s)\n", i+1, smsId, statusText, code)
+        		
+        		if !pending[code] {
+        			fmt.Println("Final Status Reached. Chain Complete!")
+        			return
+        		}
+        	}
+        	fmt.Println("Timeout waiting for final delivery status.")
         }
         EOF
         go run test_sms.go
