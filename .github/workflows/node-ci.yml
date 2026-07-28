@@ -1,0 +1,74 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: persiafava-node
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+        
+    - name: Install dependencies
+      run: npm install
+        
+    - name: Test Sending SMS
+      env:
+        PERSIAFAVA_USER: "aria"
+        PERSIAFAVA_PASS: "Aria!160"
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'EOF' > test_sms.js
+        const PersiaFava = require('./src/client');
+        
+        async function runTest() {
+            try {
+                const client = new PersiaFava({
+                    username: process.env.PERSIAFAVA_USER,
+                    password: process.env.PERSIAFAVA_PASS,
+                    apiKey: process.env.PERSIAFAVA_API_KEY
+                });
+                
+                const formatter = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Tehran',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false
+                });
+                const parts = formatter.formatToParts(new Date());
+                const dateObj = {};
+                parts.forEach(({ type, value }) => { dateObj[type] = value; });
+                const current_time = `${dateObj.year}-${dateObj.month}-${dateObj.day}T${dateObj.hour}:${dateObj.minute}:${dateObj.second}`;
+                const message = `git test ${current_time}`;
+
+                const response = await client.sendSms(
+                    ["09123117965"],
+                    "300097500097",
+                    message
+                );
+                
+                console.log("Sent message:", message);
+                console.log("Success! Response:", response);
+            } catch (error) {
+                console.error("Failed to send SMS:", error);
+                process.exit(1);
+            }
+        }
+        
+        runTest();
+        EOF
+        node test_sms.js

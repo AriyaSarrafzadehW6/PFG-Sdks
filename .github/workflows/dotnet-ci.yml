@@ -1,0 +1,87 @@
+name: .NET CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: persiafava-dotnet
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0.x
+        
+    - name: Restore dependencies
+      run: dotnet restore PersiaFava/PersiaFava.csproj
+      
+    - name: Build
+      run: dotnet build PersiaFava/PersiaFava.csproj --no-restore
+        
+    - name: Test Sending SMS
+      env:
+        PERSIAFAVA_USER: "aria"
+        PERSIAFAVA_PASS: "Aria!160"
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        mkdir -p TestApp
+        cd TestApp
+        dotnet new console
+        dotnet add reference ../PersiaFava/PersiaFava.csproj
+        
+        cat << 'EOF' > Program.cs
+        using System;
+        using System.Collections.Generic;
+        using System.Threading.Tasks;
+        using PersiaFava;
+        
+        namespace TestApp
+        {
+            class Program
+            {
+                static async Task Main(string[] args)
+                {
+                    try
+                    {
+                        var client = new Client(
+                            Environment.GetEnvironmentVariable("PERSIAFAVA_USER"),
+                            Environment.GetEnvironmentVariable("PERSIAFAVA_PASS"),
+                            Environment.GetEnvironmentVariable("PERSIAFAVA_API_KEY")
+                        );
+                        
+                        TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+                        DateTime localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+                        string currentTime = localTime.ToString("o"); // ISO 8601
+                        string message = $"git test {currentTime}";
+
+                        var response = await client.SendSmsAsync(
+                            new List<string> { "09123117965" },
+                            "300097500097",
+                            message
+                        );
+                        
+                        Console.WriteLine($"Sent message: {message}");
+                        Console.WriteLine($"Success! Response: {response}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"Failed to send SMS: {ex.Message}");
+                        Environment.Exit(1);
+                    }
+                }
+            }
+        }
+        EOF
+        
+        dotnet run

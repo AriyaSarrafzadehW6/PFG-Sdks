@@ -1,0 +1,67 @@
+name: Ruby CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: persiafava-ruby
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+        
+    - name: Install dependencies
+      run: |
+        bundle install
+        gem install tzinfo
+        
+    - name: Test Sending SMS
+      env:
+        PERSIAFAVA_USER: "aria"
+        PERSIAFAVA_PASS: "Aria!160"
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'EOF' > test_sms.rb
+        require_relative 'lib/persiafava'
+        require 'tzinfo'
+        require 'time'
+        
+        begin
+          client = PersiaFava::Client.new(
+            username: ENV['PERSIAFAVA_USER'],
+            password: ENV['PERSIAFAVA_PASS'],
+            api_key: ENV['PERSIAFAVA_API_KEY']
+          )
+          
+          tz = TZInfo::Timezone.get('Asia/Tehran')
+          current_time = tz.now.iso8601
+          message = "git test #{current_time}"
+
+          response = client.send_sms(
+            to: ['09123117965'],
+            sender: '300097500097',
+            text: message
+          )
+          
+          puts "Sent message: #{message}"
+          puts "Success! Response: #{response.inspect}"
+        rescue StandardError => e
+          puts "Failed to send SMS: #{e.message}"
+          exit 1
+        end
+        EOF
+        ruby test_sms.rb
