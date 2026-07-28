@@ -59,3 +59,111 @@ jobs:
             sys.exit(1)
         PYEOF
         python test_sms.py
+=======
+name: Python CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: self-hosted
+
+    defaults:
+      run:
+        working-directory: persiafava-python
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install requests
+        pip install pytz
+        
+    - name: Test Complete SMS Chain
+      env:
+        PERSIAFAVA_USER: "aria"
+        PERSIAFAVA_PASS: "Aria!160"
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'EOF' > test_sms.py
+        import os, sys, time, re, json, requests, pytz
+        from datetime import datetime
+        from persiafava.client import Client
+        
+        user = os.environ['PERSIAFAVA_USER']
+        passwd = os.environ['PERSIAFAVA_PASS']
+        api_key = os.environ['PERSIAFAVA_API_KEY']
+        
+        status_map = {
+            "-1": "پیام یافت نشد - احتمالاً آرشیو شده", "0": "بدون وضعیت - در انتظار دریافت وضعیت",
+            "1": "رسیده به گوشی ✅", "2": "نرسیده به گوشی ❌", "3": "ارسال نشده به مخابرات",
+            "4": "ارسال شده به مخابرات", "5": "لیست سیاه مخابرات (Blacklist)", "8": "ارسال شده به اپراتور",
+            "9": "بازگشت هزینه به دلیل ترافیک مخابرات", "10": "صف ارسال", "11": "اسپم",
+            "12": "منقضی شده (Expired)", "13": "بدون روت", "14": "ریجکت شده",
+            "16": "نرسیده به مخابرات", "17": "بدون وضعیت دلیوربیس"
+        }
+        
+        try:
+            # 1. User Info
+            print("--- Step 1: User Info ---")
+            info_res = requests.post("https://sms.persiafava.com/webservice/rest/user_info", 
+                                     data={'login_username': user, 'login_password': passwd}).json()
+            print("User Info Response:", json.dumps(info_res, ensure_ascii=False))
+            print()
+            
+            # 2. SDK Send SMS
+            print("--- Step 2: Send SMS (via SDK) ---")
+            client = Client(username=user, password=passwd, api_key=api_key)
+            tehran_tz = pytz.timezone('Asia/Tehran')
+            current_time = datetime.now(tehran_tz).isoformat()
+            
+            response = client.send_sms(to=["09123117965"], sender="300097500097", text=f"git test {current_time}")
+            
+            # Extract smsId safely via Regex replacing ' with " to handle python dicts implicitly converted to string
+            res_str = str(response).replace("'", '"')
+            match = re.search(r'"list"\s*:\s*\[\s*"([^"]+)"', res_str)
+            if not match:
+                raise Exception(f"Could not extract smsId from SDK response: {res_str}")
+                
+            sms_id = match.group(1)
+            print("SDK Response:", res_str)
+            print("Extracted SMS ID:", sms_id)
+            print()
+            
+            # 3. Delivery Polling
+            print("--- Step 3: Polling Delivery ---")
+            pending_statuses = ["0", "4", "10"]
+            
+            for i in range(6):
+                time.sleep(5)
+                del_res = requests.get(f"http://sms.persiafava.com/webservice/rest/sms_deliver?smsid[]={sms_id}&dargah=3000").json()
+                
+                code = str(del_res.get("list", {}).get(sms_id, "-99"))
+                status_text = status_map.get(code, "وضعیت ناشناخته")
+                
+                print(f"Attempt {i+1} -> Status for {sms_id}: {status_text} (Code: {code})")
+                
+                if code not in pending_statuses:
+                    print("Final Status Reached. Chain Complete!")
+                    sys.exit(0)
+            
+            print("Timeout waiting for final delivery status.")
+        except Exception as e:
+            print(f"Chain failed: {e}")
+            sys.exit(1)
+        EOF
+        python test_sms.py
+
