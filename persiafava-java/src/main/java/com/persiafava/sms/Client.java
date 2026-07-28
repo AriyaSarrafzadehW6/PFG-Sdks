@@ -25,12 +25,14 @@ public class Client {
     private final String password;
     private final String apiKey;
 
+    // احراز هویت با API Key
     public Client(String apiKey) {
         this.apiKey = apiKey;
         this.username = null;
         this.password = null;
     }
 
+    // احراز هویت با نام کاربری/رمز عبور (فقط یکی از دو سازنده استفاده شود، نه هر دو باهم)
     public Client(String username, String password) {
         this.username = username;
         this.password = password;
@@ -42,6 +44,15 @@ public class Client {
         if (apiKey != null) { m.put("api_key", apiKey); }
         else { m.put("login_username", username); m.put("login_password", password); }
         return m;
+    }
+
+    /** روش ساده‌ی ارسال پیامک: لیست گیرندگان، فرستنده و متن پیام (خروجی به‌صورت رشته). */
+    public String sendSms(java.util.List<String> recipients, String sender, String message) throws ApiException, HttpRequestException {
+        Map<String, String> params = new HashMap<>();
+        params.put("receiver_number", String.join(",", recipients));
+        params.put("sender_number", sender);
+        params.put("note_arr[]", message);
+        return request("POST", "sms_send", params).toString();
     }
 
     @SuppressWarnings("unchecked")

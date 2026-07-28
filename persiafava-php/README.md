@@ -15,22 +15,15 @@ composer require persiafava/sms-sdk
 ```php
 use PersiaFava\Client;
 
-$client = new Client('USERNAME', 'PASSWORD');
-// یا: $client = new Client('YOUR_API_KEY');
+$client = new Client('YOUR_API_KEY');
 
-$result = $client->send([
-    'receiver_number' => '09123456789',
-    'sender_number'   => '3000569999',
-    'note_arr[]'      => 'سلام دنیا!',
-]);
+$result = $client->sendSms(['09123456789'], '3000569999', 'سلام دنیا!');
 print_r($result);
 ```
 
 ## احراز هویت
 
-دو روش پشتیبانی می‌شود:
-- `new Client($username, $password)`
-- `new Client($apiKey)` — پیشنهادی، فقط یک آرگومان بدهید
+کلاینت فقط با API Key کار می‌کند. از پنل کاربری خود یک API Key بسازید: `new Client($apiKey)`
 
 ## متدهای موجود
 

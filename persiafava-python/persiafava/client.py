@@ -14,6 +14,7 @@ BASE_URL = 'https://sms.persiafava.com/webservice/rest/'
 
 class Client:
     def __init__(self, username_or_api_key, password=None):
+        """دو روش احراز هویت (فقط یکی، نه هر دو باهم): Client(username, password) یا Client(api_key)"""
         if password is None:
             self.api_key = username_or_api_key
             self.username = None
@@ -27,6 +28,14 @@ class Client:
         if self.api_key:
             return {'api_key': self.api_key}
         return {'login_username': self.username, 'login_password': self.password}
+
+    def send_sms(self, to=None, sender=None, text=None):
+        """روش ساده‌ی ارسال پیامک: لیست گیرندگان، فرستنده و متن پیام."""
+        return self.send(
+            receiver_number=','.join(to or []),
+            sender_number=sender,
+            note_arr=text,
+        )
 
     def _request(self, verb, endpoint, params):
         all_params = dict(self._auth_params())

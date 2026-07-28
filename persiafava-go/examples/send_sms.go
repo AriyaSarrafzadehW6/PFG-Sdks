@@ -8,12 +8,9 @@ import (
 
 func main() {
 	// روش اول: نام کاربری و رمز عبور
-	client := persiafava.NewClient("USERNAME", "PASSWORD")
+	client := persiafava.NewClientWithApiKey("YOUR_API_KEY")
 
-	// روش دوم (پیشنهادی): فقط با API Key از پنل
-	// client := persiafava.NewClientWithApiKey("YOUR_API_KEY")
-
-	result, err := client.Send("09123456789", "3000569999", "سلام! این یک پیام آزمایشی از SDK پرشیا فاواست.", "", "", "")
+	result, err := client.SendSMS([]string{"09123456789"}, "3000569999", "سلام! این یک پیام آزمایشی از SDK پرشیا فاواست.")
 	if err != nil {
 		fmt.Println("خطا:", err)
 		return

@@ -38,7 +38,7 @@ func NewClient(username, password string) *Client {
 	return &Client{username: username, password: password, http: &http.Client{Timeout: 20 * time.Second}}
 }
 
-// NewClientWithApiKey یک کلاینت با API Key می‌سازد (روش پیشنهادی).
+// NewClientWithApiKey یک کلاینت با API Key می‌سازد (فقط یکی از این دو سازنده استفاده شود).
 func NewClientWithApiKey(apiKey string) *Client {
 	return &Client{apiKey: apiKey, http: &http.Client{Timeout: 20 * time.Second}}
 }
@@ -48,6 +48,16 @@ func (c *Client) authParams() map[string]string {
 		return map[string]string{"api_key": c.apiKey}
 	}
 	return map[string]string{"login_username": c.username, "login_password": c.password}
+}
+
+// SendSMS روش ساده‌ی ارسال پیامک: لیست گیرندگان، فرستنده و متن پیام.
+func (c *Client) SendSMS(recipients []string, sender string, message string) (map[string]interface{}, error) {
+	params := map[string]string{
+		"receiver_number": strings.Join(recipients, ","),
+		"sender_number":   sender,
+		"note_arr[]":      message,
+	}
+	return c.request("POST", "sms_send", params)
 }
 
 func (c *Client) request(verb, endpoint string, params map[string]string) (map[string]interface{}, error) {

@@ -25,6 +25,10 @@ class Client
      * @param string|null $usernameOrApiKey نام کاربری، یا در صورت استفاده از حالت API Key، مقدار خود کلید
      * @param string|null $password رمز عبور (در صورت استفاده از حالت username/password)
      */
+    /**
+     * دو روش احراز هویت (فقط یکی در هر درخواست استفاده می‌شود، نه هر دو باهم):
+     * new Client($username, $password)  یا  new Client($apiKey)
+     */
     public function __construct($usernameOrApiKey, $password = null)
     {
         if ($password === null) {
@@ -41,6 +45,22 @@ class Client
             return ['api_key' => $this->apiKey];
         }
         return ['login_username' => $this->username, 'login_password' => $this->password];
+    }
+
+    /**
+     * روش ساده‌ی ارسال پیامک: آرایه‌ای از گیرندگان، فرستنده و متن پیام.
+     * @param array $recipients
+     * @param string $sender
+     * @param string $message
+     * @return array
+     */
+    public function sendSms(array $recipients, $sender, $message)
+    {
+        return $this->send([
+            'receiver_number' => implode(',', $recipients),
+            'sender_number' => $sender,
+            'note_arr[]' => $message,
+        ]);
     }
 
     private function get($endpoint, $params)

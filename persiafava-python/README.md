@@ -15,14 +15,9 @@ pip install persiafava-sms-sdk
 ```python
 from persiafava import Client
 
-client = Client('USERNAME', 'PASSWORD')
-# یا: client = Client('YOUR_API_KEY')
+client = Client('YOUR_API_KEY')
 
-result = client.send(
-    receiver_number='09123456789',
-    sender_number='3000569999',
-    note_arr='سلام دنیا!',
-)
+result = client.send_sms(to=['09123456789'], sender='3000569999', text='سلام دنیا!')
 print(result)
 ```
 

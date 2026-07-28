@@ -15,14 +15,9 @@ npm install persiafava-sms-sdk
 ```js
 const PersiaFavaClient = require('persiafava-sms-sdk');
 
-const client = new PersiaFavaClient('USERNAME', 'PASSWORD');
-// یا: const client = new PersiaFavaClient('YOUR_API_KEY');
+const client = new PersiaFavaClient('YOUR_API_KEY');
 
-client.send({
-  receiver_number: '09123456789',
-  sender_number: '3000569999',
-  'note_arr[]': 'سلام دنیا!',
-}).then(console.log).catch(console.error);
+client.sendSms(['09123456789'], '3000569999', 'سلام دنیا!').then(console.log).catch(console.error);
 ```
 
 ## متدهای موجود

@@ -11,10 +11,9 @@ gem install persiafava-sms-sdk
 ## استفاده سریع
 
 ```ruby
-client = PersiaFava::Client.new('USERNAME', 'PASSWORD')
-# یا: client = PersiaFava::Client.new('YOUR_API_KEY')
+client = PersiaFava::Client.new('YOUR_API_KEY')
 
-result = client.send(receiver_number: '09123456789', sender_number: '3000569999', note_arr: 'سلام دنیا!')
+result = client.send_sms(to: ['09123456789'], sender: '3000569999', text: 'سلام دنیا!')
 puts result
 ```
 

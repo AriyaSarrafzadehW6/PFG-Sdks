@@ -15,10 +15,9 @@
 ## استفاده سریع
 
 ```java
-Client client = new Client("USERNAME", "PASSWORD");
-// یا: Client client = new Client("YOUR_API_KEY");
+Client client = new Client("YOUR_API_KEY");
 
-var result = client.send("09123456789", "3000569999", "سلام دنیا!", null, null, null, null, null);
+var result = client.sendSms(java.util.List.of("09123456789"), "3000569999", "سلام دنیا!");
 System.out.println(result);
 ```
 

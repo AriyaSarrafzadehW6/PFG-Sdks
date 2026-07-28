@@ -1,27 +1,33 @@
-# PersiaFava SMS SDK — C# / .NET
+# PersiaFava SMS SDK — Delphi
 
-کلاینت رسمی C#/.NET (net6.0+) برای وب‌سرویس REST پیامک پرشیا فاوا.
+کلاینت رسمی Delphi برای وب‌سرویس REST پیامک پرشیا فاوا. مبتنی بر کتابخانه Indy (`IdHTTP` + `IdSSLOpenSSL`) که به‌صورت پیش‌فرض همراه Delphi نصب است.
 
 ## نصب
 
-```bash
-dotnet add package PersiaFava.Sms.Sdk
-```
+فایل `PersiaFavaClient.pas` را به پروژه‌ی خود اضافه کنید (`uses PersiaFavaClient;`).
 
 ## استفاده سریع
 
-```csharp
-using PersiaFava;
-
-var client = new Client("YOUR_API_KEY");
-
-var result = await client.SendSmsAsync(new List<string> { "09123456789" }, "3000569999", "سلام دنیا!");
-Console.WriteLine(result);
+```pascal
+var
+  Client: TPersiaFavaClient;
+  Response: TStringList;
+begin
+  Client := TPersiaFavaClient.Create('USERNAME', 'PASSWORD');
+  // یا: Client := TPersiaFavaClient.Create('YOUR_API_KEY');
+  try
+    Response := Client.Send('09123456789', '3000569999', 'سلام دنیا!');
+    WriteLn(Response.Text);
+    Response.Free;
+  finally
+    Client.Free;
+  end;
+end;
 ```
 
 ## متدهای موجود
 
-| متد C# | معادل REST | توضیح |
+| متد Delphi | معادل REST | توضیح |
 |---|---|---|
 | `UserInfo()` | `user_info` | از این متد برای دریافت اطلاعات کاربری و شماره های اختصاصی و میزان شارژ استفاده می‌شود. |
 | `Send()` | `sms_send` | از این متد برای ارسال پیامک از طریق معماری رست استفاده می شود. اطلاعات میتوانند توسط متد POST ارسال شوند. |
@@ -42,8 +48,8 @@ Console.WriteLine(result);
 
 ## خطاها
 
-- `ApiException` — سرور پاسخ داد اما درخواست ناموفق بود
-- `HttpRequestFailedException` — ارتباط با سرور برقرار نشد
+- `EPersiaFavaApiException` — سرور پاسخ داد اما درخواست ناموفق بود
+- `EPersiaFavaHttpException` — ارتباط با سرور برقرار نشد
 
 ## لایسنس
 

@@ -13,6 +13,7 @@ module PersiaFava
   class Client
     BASE_URL = 'https://sms.persiafava.com/webservice/rest/'
 
+    # دو روش احراز هویت (فقط یکی، نه هر دو باهم): Client.new(user, pass) یا Client.new(api_key)
     def initialize(username_or_api_key, password = nil)
       if password.nil?
         @api_key = username_or_api_key
@@ -20,6 +21,15 @@ module PersiaFava
         @username = username_or_api_key
         @password = password
       end
+    end
+
+    # روش ساده‌ی ارسال پیامک: لیست گیرندگان، فرستنده و متن پیام.
+    def send_sms(to: [], sender: nil, text: nil)
+      request('POST', 'sms_send', {
+                'receiver_number' => to.join(','),
+                'sender_number' => sender,
+                'note_arr[]' => text
+              })
     end
 
     private

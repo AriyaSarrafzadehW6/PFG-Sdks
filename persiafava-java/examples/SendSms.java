@@ -5,13 +5,10 @@ import com.persiafava.sms.HttpRequestException;
 public class SendSms {
     public static void main(String[] args) {
         // روش اول: نام کاربری و رمز عبور
-        Client client = new Client("USERNAME", "PASSWORD");
-
-        // روش دوم (پیشنهادی): فقط با API Key از پنل
-        // Client client = new Client("YOUR_API_KEY");
+        Client client = new Client("YOUR_API_KEY");
 
         try {
-            var result = client.send("09123456789", "3000569999", "سلام! این یک پیام آزمایشی از SDK پرشیا فاواست.", null, null, null);
+            var result = client.sendSms(java.util.List.of("09123456789"), "3000569999", "سلام! این یک پیام آزمایشی از SDK پرشیا فاواست.");
             System.out.println(result);
         } catch (ApiException e) {
             System.out.println("خطای API: " + e.getMessage());

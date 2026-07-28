@@ -22,6 +22,7 @@ namespace PersiaFava
         private readonly string _password;
         private readonly string _apiKey;
 
+        // دو روش احراز هویت (فقط یکی، نه هر دو باهم): new Client(user, pass) یا new Client(apiKey)
         public Client(string usernameOrApiKey, string password = null)
         {
             if (password == null) { _apiKey = usernameOrApiKey; }
@@ -32,6 +33,18 @@ namespace PersiaFava
         {
             if (_apiKey != null) return new Dictionary<string, string> { ["api_key"] = _apiKey };
             return new Dictionary<string, string> { ["login_username"] = _username, ["login_password"] = _password };
+        }
+
+        /// <summary>روش ساده‌ی ارسال پیامک: لیست گیرندگان، فرستنده و متن پیام.</summary>
+        public async Task<Dictionary<string, object>> SendSmsAsync(List<string> recipients, string sender, string message)
+        {
+            var parameters = new Dictionary<string, string>
+            {
+                ["receiver_number"] = string.Join(",", recipients),
+                ["sender_number"] = sender,
+                ["note_arr[]"] = message,
+            };
+            return await RequestAsync("POST", "sms_send", parameters);
         }
 
         private async Task<Dictionary<string, object>> RequestAsync(string verb, string endpoint, Dictionary<string, string> parameters)

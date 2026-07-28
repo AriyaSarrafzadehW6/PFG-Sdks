@@ -1,0 +1,4 @@
+*.dcu
+*.identcache
+*.local
+__history/

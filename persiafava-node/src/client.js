@@ -16,6 +16,7 @@ class PersiaFavaClient {
    * @param {string} usernameOrApiKey نام کاربری یا API Key
    * @param {string} [password] رمز عبور (در صورت استفاده از حالت username/password)
    */
+  // دو روش احراز هویت (فقط یکی، نه هر دو باهم): new Client(user, pass) یا new Client(apiKey)
   constructor(usernameOrApiKey, password) {
     if (password === undefined) {
       this.apiKey = usernameOrApiKey;
@@ -28,6 +29,15 @@ class PersiaFavaClient {
   _authParams() {
     if (this.apiKey) return { api_key: this.apiKey };
     return { login_username: this.username, login_password: this.password };
+  }
+
+  /** روش ساده‌ی ارسال پیامک: آرایه‌ای از گیرندگان، فرستنده و متن پیام. */
+  sendSms(recipients, sender, message) {
+    return this.send({
+      receiver_number: recipients.join(','),
+      sender_number: sender,
+      'note_arr[]': message,
+    });
   }
 
   async _request(verb, endpoint, params) {

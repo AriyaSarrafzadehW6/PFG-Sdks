@@ -1,72 +1,42 @@
 # PersiaFava SMS SDKs
 
-Official SDKs for the PersiaFava SMS REST API.
+کیت‌های توسعه نرم‌افزار رسمی برای وب‌سرویس REST پیامک پرشیا فاوا.
 
-This repository includes client libraries for multiple languages so you can send messages, check delivery status, manage contacts, work with labels and keywords, and use other parts of the PersiaFava SMS platform without dealing with raw HTTP requests yourself.
+## زبان‌های موجود
 
-## Available SDKs
+| پوشه | زبان | نصب |
+|---|---|---|
+| [`persiafava-php/`](./persiafava-php) | PHP 7.2+ | `composer require persiafava/sms-sdk` |
+| [`persiafava-node/`](./persiafava-node) | Node.js | `npm install persiafava-sms-sdk` |
+| [`persiafava-python/`](./persiafava-python) | Python 3.6+ | `pip install persiafava-sms-sdk` |
+| [`persiafava-dotnet/`](./persiafava-dotnet) | C# / .NET 6+ | `dotnet add package PersiaFava.Sms.Sdk` |
+| [`persiafava-java/`](./persiafava-java) | Java 11+ | Maven (`pom.xml` شامل شده) |
+| [`persiafava-go/`](./persiafava-go) | Go 1.20+ | `go get github.com/persiafava/persiafava-go` |
+| [`persiafava-ruby/`](./persiafava-ruby) | Ruby 2.6+ | `gem install persiafava-sms-sdk` |
+| [`persiafava-delphi/`](./persiafava-delphi) | Delphi (Indy) | افزودن دستی فایل واحد به پروژه |
+| [`persiafava-laravel/`](./persiafava-laravel) | Laravel | `composer require persiafava/laravel-sms-sdk` |
+| [`persiafava-yii2/`](./persiafava-yii2) | Yii2 | `composer require persiafava/yii2-sms-sdk` |
 
-| Directory | Language | Install |
-| --- | --- | --- |
-| `persiafava-php/` | PHP 7.2+ | `composer require persiafava/sms-sdk` |
-| `persiafava-node/` | Node.js | `npm install persiafava-sms-sdk` |
-| `persiafava-python/` | Python 3.6+ | `pip install persiafava-sms-sdk` |
-| `persiafava-dotnet/` | C# / .NET 6+ | `dotnet add package PersiaFava.Sms.Sdk` |
-| `persiafava-java/` | Java 11+ | Maven package |
-| `persiafava-go/` | Go 1.20+ | `go get github.com/persiafava/persiafava-go` |
-| `persiafava-ruby/` | Ruby 2.6+ | `gem install persiafava-sms-sdk` |
+هر SDK پوشش کامل ۱۶ متد REST را دارد: ارسال پیامک، وضعیت دلیوری، دریافتی‌ها، اطلاعات کاربر، مدیریت دفترچه تلفن (گروه‌ها و شماره‌ها)، کلمات کلیدی/لیبل، و لینک ورود یکبار‌مصرف. مستندات کامل و دقیق هر پارامتر در `persia_fava_docs.html` است.
 
-## Features
+## احراز هویت
 
-All SDKs are built around the same core API capabilities, including:
+هر کلاینت از دو روش پشتیبانی می‌کند (در هر درخواست فقط یکی از این دو استفاده می‌شود، نه هر دو با هم):
 
-- Sending SMS
-- Checking delivery status
-- Reading inbound messages
-- Fetching account information
-- Managing contact groups and contacts
-- Working with labels and keywords
-- Creating one-time login links
+1. `Client(username, password)`
+2. `Client(api_key)`
 
-## Authentication
+## خطاها
 
-The clients support two authentication styles:
+الگوی یکسان در همه‌ی زبان‌ها:
 
-1. Username and password
-2. API key
+- **ApiException** — درخواست به سرور رسید اما خود API خطا برگرداند (اعتبار ناکافی، پارامتر نامعتبر و غیره)
+- **HttpException / HttpRequestException** — ارتباط با سرور برقرار نشد (قطعی شبکه، تایم‌اوت و غیره)
 
-API key authentication is recommended for most projects.
+## پوشش API
 
-## Error Handling
+این نسخه فقط پلتفرم **REST** را پوشش می‌دهد. پلتفرم‌های SOAP، ESB، ارسال با URL و VMS در این SDKها پیاده‌سازی نشده‌اند؛ برای این پلتفرم‌ها به مستندات `persia_fava_docs.html` مراجعه کنید.
 
-The SDKs follow a similar error model across languages:
+## لایسنس
 
-- `ApiException`: the request reached the API, but the API returned an error
-- `HttpException` / `HttpRequestException`: the request could not be completed because of a network or transport issue
-
-Exact class names may vary slightly depending on the language.
-
-## Getting Started
-
-Each SDK directory includes its own README and example files with language-specific usage.
-
-Typical setup looks like this:
-
-1. Install the package for your language
-2. Create a client with your credentials or API key
-3. Call the method you need
-4. Handle API and HTTP errors as needed
-
-## Repository Layout
-
-- `persiafava-php/` — PHP package
-- `persiafava-node/` — Node.js package
-- `persiafava-python/` — Python package
-- `persiafava-dotnet/` — .NET package
-- `persiafava-java/` — Java package
-- `persiafava-go/` — Go package
-- `persiafava-ruby/` — Ruby package
-
-## License
-
-Ariya.Sarrafzadeh — © PersiaFava
+MIT

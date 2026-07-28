@@ -11,10 +11,9 @@ go get github.com/persiafava/persiafava-go
 ## استفاده سریع
 
 ```go
-client := persiafava.NewClient("USERNAME", "PASSWORD")
-// یا: client := persiafava.NewClientWithApiKey("YOUR_API_KEY")
+client := persiafava.NewClient("YOUR_API_KEY")
 
-result, err := client.Send("09123456789", "3000569999", "سلام دنیا!", "", "", "")
+result, err := client.SendSMS([]string{"09123456789"}, "3000569999", "سلام دنیا!")
 ```
 
 ## متدهای موجود
