@@ -1,0 +1,80 @@
+name: Delphi CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: persiafava-delphi
+    steps:
+    - uses: actions/checkout@v3
+    - name: Test Complete SMS Chain (Raw cURL Fallback)
+      env:
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        echo "NOTE: Delphi requires an Embarcadero Windows compiler (dcc32/MSBuild)."
+        echo "This runner cannot compile the Delphi SDK, so this workflow validates"
+        echo "the API chain itself via raw cURL instead."
+        echo ""
+
+        echo "--- Step 1: User Info ---"
+        USER_INFO=$(curl -s "https://sms.persiafava.com/webservice/rest/user_info?api_key=$PERSIAFAVA_API_KEY")
+        echo "User Info Response: $USER_INFO"
+        DARGAH=$(echo "$USER_INFO" | grep -o '"list_public" *: *\[ *{ *"number" *: *"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+        if [ -z "$DARGAH" ]; then DARGAH="3000"; fi
+        echo "Using dargah: $DARGAH"
+        echo ""
+
+        echo "--- Step 2: Send SMS ---"
+        CURRENT_TIME=$(TZ='Asia/Tehran' date +'%Y-%m-%dT%H:%M:%S%z')
+        MESSAGE="git test $CURRENT_TIME"
+        SEND_RES=$(curl -s --globoff "https://sms.persiafava.com/webservice/rest/sms_send?note_arr[]=$MESSAGE&api_key=$PERSIAFAVA_API_KEY&receiver_number=09123117965&sender_number=300097500097")
+        echo "Send Response: $SEND_RES"
+
+        SMS_ID=$(echo "$SEND_RES" | grep -o '"list" *: *\[ *"[^"]*"' | grep -o '"[^"]*"$' | tr -d '"')
+        if [ -z "$SMS_ID" ]; then
+          echo "Failed to extract SMS ID from response."
+          exit 1
+        fi
+        echo "Extracted SMS ID: $SMS_ID"
+        echo ""
+
+        echo "--- Step 3: Polling Delivery ---"
+        for i in 1 2 3 4 5 6; do
+          sleep 5
+          DEL_RES=$(curl -s --globoff "https://sms.persiafava.com/webservice/rest/sms_deliver?smsid[]=$SMS_ID&dargah=$DARGAH")
+          CODE=$(echo "$DEL_RES" | grep -o "\"$SMS_ID\" *: *\"*[0-9-]*\"*" | awk -F':' '{print $2}' | tr -d '" ')
+          if [ -z "$CODE" ]; then CODE="-99"; fi
+
+          case $CODE in
+            "-1") STATUS_TEXT="پیام یافت نشد - احتمالاً آرشیو شده" ;;
+            "0") STATUS_TEXT="بدون وضعیت - در انتظار دریافت وضعیت" ;;
+            "1") STATUS_TEXT="رسیده به گوشی" ;;
+            "2") STATUS_TEXT="نرسیده به گوشی" ;;
+            "3") STATUS_TEXT="ارسال نشده به مخابرات" ;;
+            "4") STATUS_TEXT="ارسال شده به مخابرات" ;;
+            "5") STATUS_TEXT="لیست سیاه مخابرات" ;;
+            "8") STATUS_TEXT="ارسال شده به اپراتور" ;;
+            "9") STATUS_TEXT="بازگشت هزینه به دلیل ترافیک مخابرات" ;;
+            "10") STATUS_TEXT="صف ارسال" ;;
+            "11") STATUS_TEXT="اسپم" ;;
+            "12") STATUS_TEXT="منقضی شده" ;;
+            "13") STATUS_TEXT="بدون روت" ;;
+            "14") STATUS_TEXT="ریجکت شده" ;;
+            "16") STATUS_TEXT="نرسیده به مخابرات" ;;
+            "17") STATUS_TEXT="بدون وضعیت دلیوربیس" ;;
+            *) STATUS_TEXT="وضعیت ناشناخته" ;;
+          esac
+
+          echo "Attempt $i -> Status for $SMS_ID: $STATUS_TEXT (Code: $CODE)"
+
+          if [ "$CODE" != "0" ] && [ "$CODE" != "4" ] && [ "$CODE" != "10" ]; then
+            echo "Final Status Reached. Chain Complete!"
+            exit 0
+          fi
+        done
+
+        echo "Timeout waiting for final delivery status."

@@ -1,0 +1,59 @@
+name: Ruby CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: persiafava-ruby
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+    - name: Test Send / UserInfo / DeliveryStatus
+      env:
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'RBEOF' > test_sms.rb
+        require_relative 'lib/persiafava/client'
+        require 'time'
+
+        begin
+          client = PersiaFava::Client.new(ENV['PERSIAFAVA_API_KEY'])
+
+          message = "git test #{Time.now.utc.iso8601}"
+          send_result = client.send_sms(to: ['09123117965'], sender: '300097500097', text: message)
+          puts "Send response: #{send_result.inspect}"
+          smsid = send_result['list']&.first
+
+          user_info = client.user_info
+          puts "UserInfo response: #{user_info.inspect}"
+
+          dargah = begin
+            user_info.dig('number', 'list_user', 0, 'number') || '3000'
+          rescue StandardError
+            '3000'
+          end
+
+          if smsid
+            deliver_result = client.delivery_status(dargah: dargah, smsid: smsid)
+            puts "DeliveryStatus response: #{deliver_result.inspect}"
+          end
+
+          puts 'All calls completed.'
+        rescue StandardError => e
+          puts "Failed: #{e.message}"
+          exit 1
+        end
+        RBEOF
+        ruby test_sms.rb

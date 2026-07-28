@@ -1,0 +1,59 @@
+name: PHP CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: persiafava-php
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+    - name: Test Send / UserInfo / DeliveryStatus
+      env:
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'PHPEOF' > test_sms.php
+        <?php
+        require_once __DIR__ . '/vendor/autoload.php';
+
+        use PersiaFava\Client;
+
+        try {
+            $client = new Client(getenv('PERSIAFAVA_API_KEY'));
+
+            $tz = new DateTimeZone('Asia/Tehran');
+            $message = "git test " . (new DateTime('now', $tz))->format('c');
+
+            $sendResult = $client->sendSms(['09123117965'], '300097500097', $message);
+            echo "Send response:\n"; print_r($sendResult);
+            $smsid = $sendResult['list'][0] ?? null;
+
+            $userInfo = $client->UserInfo();
+            echo "UserInfo response:\n"; print_r($userInfo);
+            $dargah = $userInfo['number']['list_user'][0]['number'] ?? '3000';
+
+            if ($smsid) {
+                $deliverResult = $client->DeliveryStatus($dargah, $smsid);
+                echo "DeliveryStatus response:\n"; print_r($deliverResult);
+            }
+
+            echo "All calls completed.\n";
+        } catch (\Exception $e) {
+            echo "Failed: " . $e->getMessage() . "\n";
+            exit(1);
+        }
+        PHPEOF
+        php test_sms.php

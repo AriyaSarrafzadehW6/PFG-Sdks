@@ -1,0 +1,61 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: persiafava-python
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install requests
+    - name: Test Send / UserInfo / DeliveryStatus
+      env:
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'PYEOF' > test_sms.py
+        import os
+        import sys
+        from datetime import datetime
+        from persiafava import Client
+
+        try:
+            client = Client(os.environ['PERSIAFAVA_API_KEY'])
+
+            message = f"git test {datetime.now().isoformat()}"
+            send_result = client.send_sms(to=['09123117965'], sender='300097500097', text=message)
+            print('Send response:', send_result)
+            smsid = (send_result.get('list') or [None])[0]
+
+            user_info = client.user_info()
+            print('UserInfo response:', user_info)
+            try:
+                dargah = user_info['number']['list_user'][0]['number']
+            except (KeyError, IndexError, TypeError):
+                dargah = '3000'
+
+            if smsid:
+                deliver_result = client.delivery_status(dargah=dargah, smsid=smsid)
+                print('DeliveryStatus response:', deliver_result)
+
+            print('All calls completed.')
+        except Exception as e:
+            print(f"Failed: {e}")
+            sys.exit(1)
+        PYEOF
+        python test_sms.py

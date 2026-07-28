@@ -1,0 +1,77 @@
+name: Laravel CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: persiafava-laravel
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+    - name: Test Complete SMS Chain
+      env:
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'PHPEOF' > test_sms.php
+        <?php
+        require_once __DIR__ . '/vendor/autoload.php';
+        use PersiaFava\Client;
+
+        $statusMap = [
+            "-1" => "پیام یافت نشد - احتمالاً آرشیو شده", "0" => "بدون وضعیت - در انتظار دریافت وضعیت",
+            "1" => "رسیده به گوشی", "2" => "نرسیده به گوشی", "3" => "ارسال نشده به مخابرات",
+            "4" => "ارسال شده به مخابرات", "5" => "لیست سیاه مخابرات", "8" => "ارسال شده به اپراتور",
+            "9" => "بازگشت هزینه به دلیل ترافیک مخابرات", "10" => "صف ارسال", "11" => "اسپم",
+            "12" => "منقضی شده", "13" => "بدون روت", "14" => "ریجکت شده",
+            "16" => "نرسیده به مخابرات", "17" => "بدون وضعیت دلیوربیس"
+        ];
+
+        // این تست کلاینت پایه PersiaFava\\Client را که پکیج laravel پیرامون آن ساخته شده صدا می‌زند.
+        try {
+            $client = new Client(getenv('PERSIAFAVA_API_KEY'));
+
+            echo "--- Step 1: User Info ---\n";
+            $userInfo = $client->UserInfo();
+            echo "User Info: " . json_encode($userInfo, JSON_UNESCAPED_UNICODE) . "\n\n";
+            $dargah = $userInfo['number']['list_public'][0]['number']
+                ?? $userInfo['number']['list_user'][0]['number']
+                ?? '3000';
+
+            echo "--- Step 2: Send SMS ---\n";
+            $current_time = (new DateTime('now', new DateTimeZone('Asia/Tehran')))->format('c');
+            $message = "git test " . $current_time;
+            $sendResult = $client->sendSms(['09123117965'], '300097500097', $message);
+            $smsId = $sendResult['list'][0] ?? null;
+            echo "Send Response: " . json_encode($sendResult, JSON_UNESCAPED_UNICODE) . "\n";
+            if (!$smsId) { throw new Exception("No smsId returned."); }
+            echo "Extracted SMS ID: $smsId\n\n";
+
+            echo "--- Step 3: Polling Delivery ---\n";
+            $pending = ["0", "4", "10"];
+            for ($i = 0; $i < 6; $i++) {
+                sleep(5);
+                $delResult = $client->DeliveryStatus($dargah, $smsId);
+                $code = (string)($delResult['list'][$smsId] ?? "-99");
+                $statusText = $statusMap[$code] ?? "وضعیت ناشناخته";
+                echo "Attempt " . ($i + 1) . " -> Status for $smsId: $statusText (Code: $code)\n";
+                if (!in_array($code, $pending)) {
+                    echo "Final Status Reached. Chain Complete!\n";
+                    exit(0);
+                }
+            }
+            echo "Timeout waiting for final delivery status.\n";
+        } catch (\Exception $e) {
+            echo "Chain failed: " . $e->getMessage() . "\n";
+            exit(1);
+        }
+        PHPEOF
+        php test_sms.php

@@ -1,0 +1,83 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: persiafava-go
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+    - name: Install dependencies
+      run: go mod tidy
+    - name: Test Send / UserInfo / DeliveryStatus
+      env:
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'GOEOF' > test_sms.go
+        package main
+
+        import (
+        	"fmt"
+        	"os"
+        	"time"
+
+        	"persiafava-go/persiafava"
+        )
+
+        func main() {
+        	client := persiafava.NewClientWithApiKey(os.Getenv("PERSIAFAVA_API_KEY"))
+
+        	message := fmt.Sprintf("git test %s", time.Now().UTC().Format(time.RFC3339))
+        	sendResult, err := client.SendSMS([]string{"09123117965"}, "300097500097", message)
+        	if err != nil {
+        		fmt.Printf("Failed to send SMS: %v\n", err)
+        		os.Exit(1)
+        	}
+        	fmt.Printf("Send response: %+v\n", sendResult)
+
+        	smsid := ""
+        	if list, ok := sendResult["list"].([]interface{}); ok && len(list) > 0 {
+        		smsid = fmt.Sprintf("%v", list[0])
+        	}
+
+        	userInfo, err := client.UserInfo()
+        	if err != nil {
+        		fmt.Printf("Failed to get UserInfo: %v\n", err)
+        		os.Exit(1)
+        	}
+        	fmt.Printf("UserInfo response: %+v\n", userInfo)
+
+        	dargah := "3000"
+        	if number, ok := userInfo["number"].(map[string]interface{}); ok {
+        		if listUser, ok := number["list_user"].([]interface{}); ok && len(listUser) > 0 {
+        			if entry, ok := listUser[0].(map[string]interface{}); ok {
+        				dargah = fmt.Sprintf("%v", entry["number"])
+        			}
+        		}
+        	}
+
+        	if smsid != "" {
+        		deliverResult, err := client.DeliveryStatus(dargah, smsid)
+        		if err != nil {
+        			fmt.Printf("Failed to get DeliveryStatus: %v\n", err)
+        			os.Exit(1)
+        		}
+        		fmt.Printf("DeliveryStatus response: %+v\n", deliverResult)
+        	}
+
+        	fmt.Println("All calls completed.")
+        }
+        GOEOF
+        go run test_sms.go
