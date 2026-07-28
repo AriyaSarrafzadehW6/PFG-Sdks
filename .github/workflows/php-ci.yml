@@ -1,0 +1,67 @@
+name: PHP CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: persiafava-php
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+        
+    - name: Test Sending SMS
+      env:
+        PERSIAFAVA_USER: "aria"
+        PERSIAFAVA_PASS: "Aria!160"
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'EOF' > test_sms.php
+        <?php
+        require_once __DIR__ . '/vendor/autoload.php';
+        
+        use PersiaFava\Client;
+        
+        try {
+            $client = new Client(
+                getenv('PERSIAFAVA_USER'),
+                getenv('PERSIAFAVA_PASS'),
+                getenv('PERSIAFAVA_API_KEY')
+            );
+            
+            $tz = new DateTimeZone('Asia/Tehran');
+            $date = new DateTime('now', $tz);
+            $current_time = $date->format('c'); // ISO 8601
+            $message = "git test " . $current_time;
+
+            $response = $client->sendSms(
+                ['09123117965'],
+                '300097500097',
+                $message
+            );
+            
+            echo "Sent message: " . $message . "\n";
+            echo "Success! Response:\n";
+            print_r($response);
+        } catch (\Exception $e) {
+            echo "Failed to send SMS: " . $e->getMessage() . "\n";
+            exit(1);
+        }
+        EOF
+        php test_sms.php
