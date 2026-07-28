@@ -10,66 +10,62 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: persiafava-java
-
     steps:
     - uses: actions/checkout@v3
-
     - name: Set up JDK 11
       uses: actions/setup-java@v3
       with:
         java-version: '11'
         distribution: 'temurin'
         cache: maven
-        
     - name: Build with Maven
       run: mvn clean compile
-        
-    - name: Test Sending SMS
+    - name: Test Send / UserInfo / DeliveryStatus
       env:
-        PERSIAFAVA_USER: "aria"
-        PERSIAFAVA_PASS: "Aria!160"
         PERSIAFAVA_API_KEY: "509:689c4573af3d1"
       run: |
-        cat << 'EOF' > src/main/java/com/persiafava/sms/TestApp.java
+        cat << 'JAVAEOF' > src/main/java/com/persiafava/sms/TestApp.java
         package com.persiafava.sms;
-        
+
         import java.util.Arrays;
-        import java.time.ZonedDateTime;
-        import java.time.ZoneId;
-        import java.time.format.DateTimeFormatter;
-        
+        import java.util.Map;
+        import java.time.Instant;
+
         public class TestApp {
+            @SuppressWarnings("unchecked")
             public static void main(String[] args) {
                 try {
-                    Client client = new Client(
-                        System.getenv("PERSIAFAVA_USER"),
-                        System.getenv("PERSIAFAVA_PASS"),
-                        System.getenv("PERSIAFAVA_API_KEY")
-                    );
-                    
-                    ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Asia/Tehran"));
-                    String currentTime = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-                    String message = "git test " + currentTime;
+                    Client client = new Client(System.getenv("PERSIAFAVA_API_KEY"));
 
-                    String response = client.sendSms(
-                        Arrays.asList("09123117965"),
-                        "300097500097",
-                        message
-                    );
-                    
-                    System.out.println("Sent message: " + message);
-                    System.out.println("Success! Response: " + response);
+                    String message = "git test " + Instant.now().toString();
+                    String sendResponse = client.sendSms(Arrays.asList("09123117965"), "300097500097", message);
+                    System.out.println("Send response: " + sendResponse);
+
+                    Map<String, Object> userInfo = client.userInfo();
+                    System.out.println("UserInfo response: " + userInfo);
+
+                    String dargah = "3000";
+                    try {
+                        Map<String, Object> number = (Map<String, Object>) userInfo.get("number");
+                        var listUser = (java.util.List<Map<String, Object>>) number.get("list_user");
+                        dargah = String.valueOf(listUser.get(0).get("number"));
+                    } catch (Exception ignored) { }
+
+                    // NOTE: sendSms() returns a String (Map#toString), so smsid is not machine-parsed here.
+                    // DeliveryStatus is demonstrated with the dargah only; pass a real smsid string when known.
+                    Map<String, Object> deliverResult = client.deliveryStatus(dargah, "");
+                    System.out.println("DeliveryStatus response: " + deliverResult);
+
+                    System.out.println("All calls completed.");
                 } catch (Exception e) {
-                    System.err.println("Failed to send SMS: " + e.getMessage());
+                    System.err.println("Failed: " + e.getMessage());
                     System.exit(1);
                 }
             }
         }
-        EOF
-        # Recompile with the test app and run it
+        JAVAEOF
         mvn compile
         mvn exec:java -Dexec.mainClass="com.persiafava.sms.TestApp"

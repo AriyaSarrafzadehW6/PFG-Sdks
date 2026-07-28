@@ -10,42 +10,34 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: persiafava-dotnet
-
     steps:
     - uses: actions/checkout@v3
-
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 6.0.x
-        
     - name: Restore dependencies
       run: dotnet restore PersiaFava/PersiaFava.csproj
-      
     - name: Build
       run: dotnet build PersiaFava/PersiaFava.csproj --no-restore
-        
-    - name: Test Sending SMS
+    - name: Test Send / UserInfo / DeliveryStatus
       env:
-        PERSIAFAVA_USER: "aria"
-        PERSIAFAVA_PASS: "Aria!160"
         PERSIAFAVA_API_KEY: "509:689c4573af3d1"
       run: |
         mkdir -p TestApp
         cd TestApp
         dotnet new console
         dotnet add reference ../PersiaFava/PersiaFava.csproj
-        
-        cat << 'EOF' > Program.cs
+
+        cat << 'CSEOF' > Program.cs
         using System;
         using System.Collections.Generic;
         using System.Threading.Tasks;
         using PersiaFava;
-        
+
         namespace TestApp
         {
             class Program
@@ -54,34 +46,43 @@ jobs:
                 {
                     try
                     {
-                        var client = new Client(
-                            Environment.GetEnvironmentVariable("PERSIAFAVA_USER"),
-                            Environment.GetEnvironmentVariable("PERSIAFAVA_PASS"),
-                            Environment.GetEnvironmentVariable("PERSIAFAVA_API_KEY")
-                        );
-                        
-                        TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
-                        DateTime localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
-                        string currentTime = localTime.ToString("o"); // ISO 8601
-                        string message = $"git test {currentTime}";
+                        var client = new Client(Environment.GetEnvironmentVariable("PERSIAFAVA_API_KEY"));
 
-                        var response = await client.SendSmsAsync(
-                            new List<string> { "09123117965" },
-                            "300097500097",
-                            message
-                        );
-                        
-                        Console.WriteLine($"Sent message: {message}");
-                        Console.WriteLine($"Success! Response: {response}");
+                        string message = $"git test {DateTime.UtcNow:o}";
+                        var sendResult = await client.SendSmsAsync(new List<string> { "09123117965" }, "300097500097", message);
+                        Console.WriteLine("Send response: " + sendResult);
+
+                        string smsid = null;
+                        if (sendResult.TryGetValue("list", out var listObj) && listObj is System.Text.Json.JsonElement listEl && listEl.GetArrayLength() > 0)
+                            smsid = listEl[0].ToString();
+
+                        var userInfo = await client.UserInfo();
+                        Console.WriteLine("UserInfo response: " + userInfo);
+
+                        string dargah = "3000";
+                        try
+                        {
+                            var numberEl = (System.Text.Json.JsonElement)userInfo["number"];
+                            dargah = numberEl.GetProperty("list_user")[0].GetProperty("number").GetString();
+                        }
+                        catch { }
+
+                        if (smsid != null)
+                        {
+                            var deliverResult = await client.DeliveryStatus(dargah, smsid);
+                            Console.WriteLine("DeliveryStatus response: " + deliverResult);
+                        }
+
+                        Console.WriteLine("All calls completed.");
                     }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine($"Failed to send SMS: {ex.Message}");
+                        Console.Error.WriteLine("Failed: " + ex.Message);
                         Environment.Exit(1);
                     }
                 }
             }
         }
-        EOF
-        
+        CSEOF
+
         dotnet run

@@ -10,65 +10,48 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
     defaults:
       run:
         working-directory: persiafava-node
-
     steps:
     - uses: actions/checkout@v3
-    
     - name: Use Node.js 18.x
       uses: actions/setup-node@v3
       with:
         node-version: 18.x
-        
     - name: Install dependencies
       run: npm install
-        
-    - name: Test Sending SMS
+    - name: Test Send / UserInfo / DeliveryStatus
       env:
-        PERSIAFAVA_USER: "aria"
-        PERSIAFAVA_PASS: "Aria!160"
         PERSIAFAVA_API_KEY: "509:689c4573af3d1"
       run: |
-        cat << 'EOF' > test_sms.js
-        const PersiaFava = require('./src/client');
-        
+        cat << 'JSEOF' > test_sms.js
+        const PersiaFavaClient = require('./src/client');
+
         async function runTest() {
             try {
-                const client = new PersiaFava({
-                    username: process.env.PERSIAFAVA_USER,
-                    password: process.env.PERSIAFAVA_PASS,
-                    apiKey: process.env.PERSIAFAVA_API_KEY
-                });
-                
-                const formatter = new Intl.DateTimeFormat('en-US', {
-                    timeZone: 'Asia/Tehran',
-                    year: 'numeric', month: '2-digit', day: '2-digit',
-                    hour: '2-digit', minute: '2-digit', second: '2-digit',
-                    hour12: false
-                });
-                const parts = formatter.formatToParts(new Date());
-                const dateObj = {};
-                parts.forEach(({ type, value }) => { dateObj[type] = value; });
-                const current_time = `${dateObj.year}-${dateObj.month}-${dateObj.day}T${dateObj.hour}:${dateObj.minute}:${dateObj.second}`;
-                const message = `git test ${current_time}`;
+                const client = new PersiaFavaClient(process.env.PERSIAFAVA_API_KEY);
 
-                const response = await client.sendSms(
-                    ["09123117965"],
-                    "300097500097",
-                    message
-                );
-                
-                console.log("Sent message:", message);
-                console.log("Success! Response:", response);
+                const message = `git test ${new Date().toISOString()}`;
+                const sendResult = await client.sendSms(['09123117965'], '300097500097', message);
+                console.log('Send response:', sendResult);
+                const smsid = sendResult.list && sendResult.list[0];
+
+                const userInfo = await client.userInfo();
+                console.log('UserInfo response:', userInfo);
+                const dargah = (userInfo.number && userInfo.number.list_user && userInfo.number.list_user[0] && userInfo.number.list_user[0].number) || '3000';
+
+                if (smsid) {
+                    const deliverResult = await client.deliveryStatus({ dargah, 'smsid[]': smsid });
+                    console.log('DeliveryStatus response:', deliverResult);
+                }
+                console.log('All calls completed.');
             } catch (error) {
-                console.error("Failed to send SMS:", error);
+                console.error('Failed:', error.message || error);
                 process.exit(1);
             }
         }
-        
+
         runTest();
-        EOF
+        JSEOF
         node test_sms.js
