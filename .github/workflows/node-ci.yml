@@ -1,0 +1,78 @@
+name: Node.js CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: persiafava-node
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js 18.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18.x
+    - name: Install dependencies
+      run: npm install
+    - name: Test Complete SMS Chain
+      env:
+        PERSIAFAVA_API_KEY: "509:689c4573af3d1"
+      run: |
+        cat << 'JSEOF' > test_sms.js
+        const PersiaFavaClient = require('./src/client');
+
+        const statusMap = {
+          "-1": "پیام یافت نشد - احتمالاً آرشیو شده", "0": "بدون وضعیت - در انتظار دریافت وضعیت",
+          "1": "رسیده به گوشی", "2": "نرسیده به گوشی", "3": "ارسال نشده به مخابرات",
+          "4": "ارسال شده به مخابرات", "5": "لیست سیاه مخابرات", "8": "ارسال شده به اپراتور",
+          "9": "بازگشت هزینه به دلیل ترافیک مخابرات", "10": "صف ارسال", "11": "اسپم",
+          "12": "منقضی شده", "13": "بدون روت", "14": "ریجکت شده",
+          "16": "نرسیده به مخابرات", "17": "بدون وضعیت دلیوربیس"
+        };
+
+        async function runTest() {
+          try {
+            const client = new PersiaFavaClient(process.env.PERSIAFAVA_API_KEY);
+
+            console.log('--- Step 1: User Info ---');
+            const userInfo = await client.userInfo();
+            console.log('User Info:', JSON.stringify(userInfo));
+            const num = userInfo.number || {};
+            const pub = Array.isArray(num.list_public) ? num.list_public[0] : null;
+            const usr = Array.isArray(num.list_user) ? num.list_user[0] : null;
+            const dargah = (pub && pub.number) || (usr && usr.number) || '3000';
+
+            console.log('--- Step 2: Send SMS ---');
+            const message = `git test ${new Date().toISOString()}`;
+            const sendResult = await client.sendSms(['09123117965'], '300097500097', message);
+            const smsId = sendResult.list && sendResult.list[0];
+            console.log('Send Response:', JSON.stringify(sendResult));
+            if (!smsId) throw new Error('No smsId returned.');
+            console.log('Extracted SMS ID:', smsId, '\n');
+
+            console.log('--- Step 3: Polling Delivery ---');
+            const pending = ['0', '4', '10'];
+            for (let i = 0; i < 6; i++) {
+              await new Promise((r) => setTimeout(r, 5000));
+              const delResult = await client.deliveryStatus({ dargah, 'smsid[]': smsId });
+              const code = String((delResult.list && delResult.list[smsId]) ?? '-99');
+              const statusText = statusMap[code] || 'وضعیت ناشناخته';
+              console.log(`Attempt ${i + 1} -> Status for ${smsId}: ${statusText} (Code: ${code})`);
+              if (!pending.includes(code)) {
+                console.log('Final Status Reached. Chain Complete!');
+                return;
+              }
+            }
+            console.log('Timeout waiting for final delivery status.');
+          } catch (error) {
+            console.error('Chain failed:', error.message || error);
+            process.exit(1);
+          }
+        }
+
+        runTest();
+        JSEOF
+        node test_sms.js
