@@ -68,9 +68,9 @@ class PersiaFavaClient {
    * @param {Object} params (بدون پارامتر ورودی)
    * @returns {Promise<Object>}
    */
-  userInfo() {
-    return this._request('GET', 'user_info', params);
-  }
+  userInfo(params = {}) {
+     return this._request('GET', 'user_info', params);
+}
 
   /**
    * از این متد برای ارسال پیامک از طریق معماری رست استفاده می شود. اطلاعات میتوانند توسط متد POST ارسال شوند.
